@@ -1,0 +1,10 @@
+fastapi>=0.115,<1
+uvicorn>=0.34,<1
+python-multipart>=0.0.20,<1
+pypdf>=5.0,<7
+psycopg[binary]>=3.2,<4
+pgvector>=0.4,<1
+openai>=1.70,<3
+python-dotenv>=1,<2
+pytest>=8,<10
+numpy>=1.26,<3

@@ -1,0 +1,7 @@
+# Exemplo fictício de documentação técnica
+
+O serviço de pedidos recebe requisições HTTP e salva os registros em PostgreSQL. Eventos de criação são publicados em uma fila assíncrona após a transação ser confirmada.
+
+Para reduzir o risco de duplicidade, o consumidor registra uma chave de idempotência por evento processado. Se a mesma mensagem chegar novamente, retorna o resultado anterior sem executar a operação duas vezes.
+
+Erros temporários são tratados com novas tentativas e atraso progressivo. Mensagens que esgotam as tentativas são encaminhadas para uma fila de falhas, onde podem ser inspecionadas antes do reprocessamento.

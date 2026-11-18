@@ -1,0 +1,33 @@
+[project]
+name = "docmind"
+version = "1.0.0"
+description = "Pesquisa documentos com FastAPI, PostgreSQL e modelos de linguagem."
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115,<1",
+    "uvicorn>=0.34,<1",
+    "python-multipart>=0.0.20,<1",
+    "pypdf>=5.0,<7",
+    "psycopg[binary]>=3.2,<4",
+    "pgvector>=0.4,<1",
+    "openai>=1.70,<3",
+    "python-dotenv>=1,<2",
+    "numpy>=1.26,<3",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.11,<1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.uv]
+package = false

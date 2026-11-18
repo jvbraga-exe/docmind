@@ -1,0 +1,8 @@
+{
+  "name": "docmind-local",
+  "private": true,
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "dev:unix": "npm --prefix frontend run dev:unix"
+  }
+}
