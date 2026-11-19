@@ -174,7 +174,7 @@ Arquivo: [`app/services/answers.py`](file:///c:/Users/langd/Documents/Repos/docm
 
 Às vezes a busca por palavras não encontra nada porque os termos da pergunta não aparecem literalmente no documento.
 
-> **Exemplo real:** o usuário pergunta *"qual é o meu número de telefone?"*, mas no documento está escrito só o número `(11) 94706-0340` sem a palavra "telefone" em lugar nenhum.
+> **Exemplo real:** o usuário pergunta *"qual é o meu número de telefone?"*, mas no documento está escrito só o número `(11) 0000-0000` sem a palavra "telefone" em lugar nenhum.
 
 Quando isso acontece e há um documento-alvo selecionado, o sistema usa o plano B: carrega todos os chunks do documento e manda para a IA avaliar. A IA consegue encontrar o número mesmo assim porque ela lê o contexto completo.
 
@@ -191,9 +191,9 @@ Os trechos encontrados são formatados assim antes de ir para a IA:
 
 ```
 [1] Documento: CV.pdf | Página: 2
-Contato: (11) 94706-0340 | email@exemplo.com
+Contato: (11) 0000-0000 | email@exemplo.com
 
-[2] Documento: CV.pdf | Página: 1
+[2] Documento: NF-e.pdf | Página: 1
 Formado em Ciência da Computação pela...
 ```
 
@@ -214,13 +214,13 @@ A resposta final vai de volta para o frontend assim:
 
 ```json
 {
-  "answer": "O número de telefone é (11) 94706-0340 [1].",
+  "answer": "O número de telefone é (11) 0000-0000 [1].",
   "sources": [
     {
       "number": 1,
-      "document": "CV.pdf",
+      "document": "NF-e.pdf",
       "page": 2,
-      "text": "Contato: (11) 94706-0340 | email@exemplo.com",
+      "text": "Contato: (11) 0000-0000 | email@exemplo.com",
       "score": 0.0
     }
   ]

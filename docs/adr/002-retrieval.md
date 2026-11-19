@@ -6,7 +6,7 @@
 
 Quando o usuário faz uma pergunta, o sistema precisa encontrar os trechos certos do documento antes de enviar para a IA. Mas nem sempre a palavra que o usuário usa aparece exatamente no documento.
 
-Exemplo: o usuário pergunta *"qual é o meu telefone?"*, mas no documento está escrito só o número `(11) 94606-1445`, sem a palavra "telefone" em nenhum lugar. Uma busca por palavra exata não encontra nada.
+Exemplo: o usuário pergunta *"qual é o meu telefone?"*, mas no documento está escrito só o número `(11) 0000-0000`, sem a palavra "telefone" em nenhum lugar. Uma busca por palavra exata não encontra nada.
 
 Existem dois jeitos de resolver isso:
 
