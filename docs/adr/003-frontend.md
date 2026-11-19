@@ -1,11 +1,28 @@
-# ADR-003 — Biblioteca e consulta na mesma tela
+# ADR-003 — Interface do usuário
 
 **Status:** aceita
 
-## Decisão
+## O que a interface precisa fazer
 
-A tela reúne a biblioteca de arquivos, o envio de documentos e a consulta com suas fontes. O front-end usa React, TypeScript e Tailwind. Ele roda e pode ser publicado separado do FastAPI; os dois se comunicam pela API HTTP.
+O DocMind tem um fluxo simples: você sobe um arquivo, faz uma pergunta e recebe uma resposta com referências. A interface foi pensada para deixar esse fluxo o mais direto possível.
 
-## Consequências
+## Como está organizada
 
-No desenvolvimento, o Vite encaminha as chamadas da interface para a API. Em produção, o endereço da API e a origem permitida são configurados pelo ambiente. Como o backend não guarda o histórico das conversas, a interface mostra apenas a resposta atual. Também exibimos os trechos usados para que a pessoa possa conferir a resposta da IA.
+Tudo fica em uma única tela dividida em duas partes:
+
+**Coluna da esquerda — seus documentos:**
+- Upload de arquivos PDF ou TXT
+- Lista dos documentos indexados com a data e a quantidade de trechos
+- Botão para remover um documento
+
+**Coluna da direita — perguntas e respostas:**
+- Campo para digitar a pergunta
+- Seletor para escolher em qual documento buscar (ou em todos ao mesmo tempo)
+- Área de resposta com o texto gerado pela IA em Markdown
+- Seção de fontes: cada trecho que embasou a resposta aparece com o nome do arquivo e a página de origem
+
+## Por que essas escolhas
+
+A ideia é que o usuário sempre saiba de onde veio a informação. A IA pode errar ou interpretar algo fora de contexto — por isso os trechos originais ficam visíveis logo abaixo da resposta, para qualquer pessoa conferir na hora.
+
+A interface é construída com React, TypeScript e Tailwind CSS, e se comunica com o backend via API — as duas partes são completamente independentes entre si.

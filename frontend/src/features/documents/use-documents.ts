@@ -33,13 +33,15 @@ export function useDocuments() {
   }, [refresh]);
 
   async function upload(file: File): Promise<boolean> {
-    if (file.size > 8 * 1024 * 1024) {
+    const MAX_FILE_BYTES = 8 * 1024 * 1024; // 8 MB
+    if (file.size > MAX_FILE_BYTES) {
       setError('O arquivo deve ter até 8 MB.');
       return false;
     }
     setUploading(true);
     setError('');
     setMessage('');
+
     try {
       const result = await documentsApi.upload(file);
       setMessage(`${result.name} indexado com ${result.chunks} trechos.`);

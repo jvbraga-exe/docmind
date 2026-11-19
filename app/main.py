@@ -1,5 +1,5 @@
-from contextlib import asynccontextmanager
 import os
+from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
 from fastapi import FastAPI
@@ -28,18 +28,18 @@ async def lifespan(app: FastAPI):
         await ai.close()
 
 
-app = FastAPI(title='DocMind', docs_url='/api/docs', redoc_url=None, lifespan=lifespan)
+app = FastAPI(title="DocMind", docs_url="/api/docs", redoc_url=None, lifespan=lifespan)
 app.include_router(router)
 
 origins = [
     origin.strip()
-    for origin in os.getenv('CORS_ORIGINS', '').split(',')
+    for origin in os.getenv("CORS_ORIGINS", "").split(",")
     if origin.strip()
 ]
 if origins:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=origins,
-        allow_methods=['GET', 'POST', 'DELETE'],
-        allow_headers=['Content-Type'],
+        allow_methods=["GET", "POST", "DELETE"],
+        allow_headers=["Content-Type"],
     )

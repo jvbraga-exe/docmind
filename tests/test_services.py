@@ -1,10 +1,15 @@
-import asyncio
-
 import pytest
 
 from app.services.answers import AnswerService
 from app.services.documents import DocumentService
 from app.services.extraction import MAX_BYTES, extract_chunks
+
+pytestmark = pytest.mark.anyio
+
+
+# ---------------------------------------------------------------------------
+# Fakes
+# ---------------------------------------------------------------------------
 
 
 class FakeRepository:
@@ -40,7 +45,27 @@ class DisabledAI:
     embedding_enabled = False
 
     async def embed(self, texts):
-        raise AssertionError('A busca sem IA não deve gerar embeddings')
+        raise RuntimeError('Provedor de IA não configurado')
+
+    async def embed_query(self, text):
+        raise RuntimeError('Provedor de IA não configurado')
+
+    async def answer(self, question, sources):
+        raise RuntimeError('Provedor de IA não configurado')
+
+
+class GroqAI:
+    enabled = True
+    embedding_enabled = False
+
+    async def embed(self, texts):
+        return None
+
+    async def embed_query(self, text):
+        return None
+
+    async def answer(self, question, sources):
+        return f"Resposta gerada pela Groq para: {question}"
 
 
 class EnabledAI:
@@ -54,35 +79,65 @@ class EnabledAI:
         self.embedding_calls += 1
         return [[0.1] * 1536 for _ in texts]
 
+    async def embed_query(self, text):
+        self.embedding_calls += 1
+        return [0.1] * 1536
+
     async def answer(self, question, sources):
         return f"Resposta sintetizada para: {question}"
 
 
-def test_answers_without_key_returns_excerpts():
+# ---------------------------------------------------------------------------
+# Fixture: executa sem thread pool nos testes
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def patch_threadpool(monkeypatch):
+    async def fake_run_in_threadpool(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr(
+        "app.services.answers.run_in_threadpool", fake_run_in_threadpool
+    )
+    monkeypatch.setattr(
+        "app.services.documents.run_in_threadpool", fake_run_in_threadpool
+    )
+
+
+# ---------------------------------------------------------------------------
+# Testes de AnswerService (Exclusivo com IA)
+# ---------------------------------------------------------------------------
+
+
+async def test_answers_requires_ai_provider():
     service = AnswerService(FakeRepository(), DisabledAI())
-    result = asyncio.run(service.ask('O que faz Kafka?'))
-    assert result['mode'] == 'search'
-    assert result['sources'][0]['page'] == 1
-    assert 'Configure uma chave de IA' in result['answer']
+    with pytest.raises(RuntimeError, match="Provedor de IA não configurado"):
+        await service.ask('O que faz Kafka?')
 
 
-def test_answers_with_no_sources_returns_not_found():
-    service = AnswerService(FakeRepository(sources=[]), DisabledAI())
-    result = asyncio.run(service.ask('Pergunta sobre algo inexistente?'))
-    assert result['mode'] == 'search'
+async def test_answers_with_no_sources_returns_not_found():
+    service = AnswerService(FakeRepository(sources=[]), EnabledAI())
+    result = await service.ask('Pergunta sobre algo inexistente?')
     assert result['sources'] == []
     assert 'Não encontrei trechos relevantes' in result['answer']
 
 
-def test_answers_with_ai_enabled_generates_response():
+async def test_answers_with_ai_enabled_generates_response():
     service = AnswerService(FakeRepository(), EnabledAI())
-    result = asyncio.run(service.ask('O que faz Kafka?'))
-    assert result['mode'] == 'generated'
+    result = await service.ask('O que faz Kafka?')
     assert 'Resposta sintetizada' in result['answer']
     assert len(result['sources']) == 1
 
 
-def test_overview_uses_all_chunks_of_the_only_document():
+async def test_answers_with_groq_without_embeddings_generates_response():
+    service = AnswerService(FakeRepository(), GroqAI())
+    result = await service.ask('O que faz Kafka?')
+    assert 'Resposta gerada pela Groq' in result['answer']
+    assert len(result['sources']) == 1
+
+
+async def test_overview_uses_all_chunks_of_the_only_document():
     repository = FakeRepository(
         sources=[
             {'number': index, 'document': 'cv.txt', 'page': 1, 'text': f'Trecho {index}'}
@@ -92,12 +147,17 @@ def test_overview_uses_all_chunks_of_the_only_document():
     repository.documents = [{'id': 'test-doc-id'}]
     ai = EnabledAI()
 
-    result = asyncio.run(AnswerService(repository, ai).ask('O que tem no meu currículo?'))
+    result = await AnswerService(repository, ai).ask('O que tem no meu currículo?')
 
-    assert result['mode'] == 'generated'
     assert len(result['sources']) == 8
     assert repository.overview_document_id == 'test-doc-id'
     assert ai.embedding_calls == 0
+    assert 'Resposta sintetizada' in result['answer']
+
+
+# ---------------------------------------------------------------------------
+# Testes de extração (síncronos)
+# ---------------------------------------------------------------------------
 
 
 def test_extraction_rejects_invalid_format():
@@ -123,20 +183,26 @@ def test_extraction_accepts_valid_txt():
     assert chunks[0] == (1, 'Primeira linha de conteúdo real.')
 
 
-def test_document_service_upload_and_delete():
-    repo = FakeRepository()
-    service = DocumentService(repo, DisabledAI())
+# ---------------------------------------------------------------------------
+# Teste de DocumentService (Indexação obrigatória com IA)
+# ---------------------------------------------------------------------------
 
-    upload_result = asyncio.run(
-        service.upload('readme.txt', 'Documento de teste com conteúdo.'.encode('utf-8'))
+
+async def test_document_service_upload_and_delete():
+    repo = FakeRepository()
+    ai = EnabledAI()
+    service = DocumentService(repo, ai)
+
+    upload_result = await service.upload(
+        'readme.txt', 'Documento de teste com conteúdo.'.encode('utf-8')
     )
     assert upload_result['name'] == 'readme.txt'
     assert upload_result['chunks'] == 1
-    assert upload_result['mode'] == 'lexical'
+    assert ai.embedding_calls == 1
 
-    docs = asyncio.run(service.list())
+    docs = await service.list()
     assert len(docs) == 1
     assert docs[0]['name'] == 'readme.txt'
 
-    deleted = asyncio.run(service.delete('existing-id'))
+    deleted = await service.delete('existing-id')
     assert deleted is True

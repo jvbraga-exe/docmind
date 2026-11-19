@@ -1,21 +1,37 @@
-# ADR-001 — Como o DocMind organiza o trabalho com documentos
+# ADR-001 — Por que FastAPI + LangChain?
 
 **Status:** aceita
 
-## Contexto
+## O problema
 
-No começo, as rotas cuidavam de tudo: recebiam arquivos, liam PDFs, consultavam o banco e chamavam a IA. Isso deixava o código difícil de testar sem depender do banco ou de um serviço externo.
+Precisei de um backend que:
+- Recebesse arquivos PDF e TXT
+- Dividisse o conteúdo em pedaços e indexasse no banco
+- Fizesse busca nesses pedaços quando o usuário perguntasse algo
+- Enviasse o resultado para uma IA gerar a resposta
 
-## Decisão
+A questão era: usar as bibliotecas do ecossistema de IA (como o LangChain) ou escrever tudo do zero?
 
-As rotas recebem as requisições e devolvem as respostas HTTP. O Pydantic valida os dados recebidos. `DocumentService` cuida do envio e da preparação dos arquivos para busca; `AnswerService` cuida das perguntas; `DocumentsRepository` conversa com o banco; e `AIProvider` chama o modelo de IA.
+## O que decidi
 
-A leitura dos arquivos e a divisão do texto em trechos não dependem do banco. Assim, dá para testar essa parte sem precisar iniciar o PostgreSQL.
+Usar **FastAPI + LangChain**, organizados em camadas separadas para facilitar manutenção e testes.
 
-## Alternativas
+### Como o código está organizado
 
-Frameworks de agentes e ferramentas maiores de pipeline adicionariam dependências e etapas que este fluxo não precisa.
+1. **`app/api/`** — Recebe as requisições HTTP, valida o que chegou e repassa para os serviços. Nada de lógica de negócio aqui.
 
-## Consequências
+2. **`app/core/chunking.py`** — Divide os documentos em pedaços menores usando o `RecursiveCharacterTextSplitter` do LangChain. Ele tenta não cortar no meio de uma frase — respeita parágrafos e pontuação.
 
-Cada parte cuida de uma tarefa. Nos testes, usamos um repositório falso no lugar do banco. Se não houver chave de IA, ainda dá para buscar palavras nos documentos.
+3. **`app/services/ai_provider.py`** — É quem fala com a IA (Groq ou OpenAI). Usa os componentes oficiais do LangChain para montar o prompt, enviar para o modelo e receber a resposta.
+
+4. **`app/services/`** — Dois serviços principais:
+   - `DocumentService`: cuida do upload e da indexação
+   - `AnswerService`: cuida de buscar os trechos certos e gerar a resposta
+
+5. **`app/repositories/`** — Toda a comunicação com o banco de dados fica aqui, separada do resto.
+
+## Por que essa escolha faz sentido
+
+- **LangChain** tem exatamente os componentes que precisamos prontos e bem mantidos. Usar o `RecursiveCharacterTextSplitter`, o `ChatGroq` e o `OpenAIEmbeddings` é mais confiável do que reescrever do zero.
+- **Separar em camadas** significa que podemos testar cada parte isoladamente sem precisar de banco ou de IA de verdade — a suíte de testes roda em frações de segundo por isso.
+- **FastAPI** com código assíncrono significa que o servidor consegue atender várias requisições ao mesmo tempo sem travar enquanto espera o banco ou a IA responder.

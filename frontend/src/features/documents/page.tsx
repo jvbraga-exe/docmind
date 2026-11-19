@@ -237,9 +237,7 @@ export function DocumentsPage() {
                     <CardDescription>Confira as citações nas fontes abaixo.</CardDescription>
                   </div>
                 </div>
-                <Badge variant={library.answer.mode === 'generated' ? 'success' : 'warning'}>
-                  {library.answer.mode === 'generated' ? 'Resposta gerada' : 'Busca nos trechos'}
-                </Badge>
+                <Badge variant="success">Resposta gerada por IA</Badge>
               </CardHeader>
               <CardContent className="answer-content">
                 <MarkdownAnswer value={library.answer.answer} />

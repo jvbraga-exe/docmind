@@ -13,4 +13,7 @@ export type Source = {
   score?: number;
 };
 
-export type Answer = { answer: string; mode: 'generated' | 'search'; sources: Source[] };
+export type Answer = {
+  answer: string;
+  sources: Source[];
+};

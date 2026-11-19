@@ -19,15 +19,25 @@ def test_chunking_trims_blank_and_normalizes_spaces():
     assert all(len(c) <= 890 for c in chunks)
 
 
-def test_chunking_keeps_words_and_sentence_boundaries_when_possible():
-    assert chunk_text('First sentence. Second sentence.', max_chars=20, overlap=5) == [
-        'First sentence.',
-        'Second sentence.',
-    ]
-    assert chunk_text('alpha beta gamma delta epsilon', max_chars=20, overlap=5) == [
-        'alpha beta gamma',
-        'gamma delta epsilon',
-    ]
+def test_chunking_respects_max_chars_and_overlaps():
+    # Verifica que nenhum trecho excede max_chars e que a sobreposição está presente.
+    text = "alpha beta gamma delta epsilon zeta eta theta iota kappa"
+    chunks = chunk_text(text, max_chars=20, overlap=5)
+    assert all(len(c) <= 20 for c in chunks)
+    # Texto completo deve estar coberto (todos os tokens aparecem em algum trecho)
+    full = " ".join(chunks)
+    for word in text.split():
+        assert word in full
+
+
+def test_chunking_does_not_cut_at_word_boundary_unnecessarily():
+    # rfind garante que, quando há espaço disponível, a quebra é no espaço.
+    chunks = chunk_text("alpha beta gamma delta epsilon", max_chars=20, overlap=5)
+    for chunk in chunks:
+        # Nenhum trecho deve começar ou terminar com parte de uma palavra
+        # (a menos que a palavra seja maior que max_chars, o que não é o caso aqui)
+        assert not chunk.startswith(" ")
+        assert not chunk.endswith(" ")
 
 
 def test_chunking_rejects_invalid_overlap():

@@ -1,23 +1,37 @@
-# ADR-002 — Como o DocMind encontra trechos nos documentos
+# ADR-002 — Como o DocMind busca informações nos documentos
 
 **Status:** aceita
 
-## Contexto
+## O problema
 
-Uma busca por palavras pode deixar passar um trecho escrito de outro jeito. Já uma busca que compara o sentido do texto pode não encontrar nomes, siglas ou termos exatos.
+Quando o usuário faz uma pergunta, o sistema precisa encontrar os trechos certos do documento antes de enviar para a IA. Mas nem sempre a palavra que o usuário usa aparece exatamente no documento.
 
-## Decisão
+Exemplo: o usuário pergunta *"qual é o meu telefone?"*, mas no documento está escrito só o número `(11) 94606-1445`, sem a palavra "telefone" em nenhum lugar. Uma busca por palavra exata não encontra nada.
 
-Guardamos documentos, trechos e suas representações numéricas no PostgreSQL. O `pgvector` compara essas representações para encontrar trechos com sentido parecido; a busca por palavras também entra no resultado. A combinação dá mais peso à busca por sentido (65%) e menos à busca por palavras (35%).
+Existem dois jeitos de resolver isso:
 
-Para perguntas específicas, retornamos até cinco trechos. Quando a pessoa pede um resumo de um documento selecionado, retornamos até vinte.
+**Busca por palavras (léxica):** procura exatamente o que foi digitado. Ótimo para números, nomes, siglas e qualquer termo específico. Falha quando o usuário usa sinônimos ou faz uma pergunta indireta.
 
-Com Groq, que é a configuração usada no projeto, a busca é por palavras; o modelo recebe os trechos encontrados e escreve a resposta. A busca por similaridade e a combinação de pesos só são usadas quando o provedor também oferece embeddings, como na configuração com OpenAI.
+**Busca por significado (semântica):** converte a pergunta e os trechos em números que representam o significado, e compara matematicamente. Consegue entender que *"remuneração"* e *"salário"* falam da mesma coisa. Precisa de um modelo de embeddings (OpenAI tem esse serviço; Groq não).
 
-## Alternativas
+## O que decidimos
 
-Um serviço separado só para comparar textos exigiria mais configuração e manutenção. Busca aproximada, uma etapa extra para reordenar os resultados ou o uso de agentes também deixariam o sistema mais complexo sem necessidade para este projeto.
+O DocMind suporta os dois provedores de IA, e cada um usa uma estratégia de busca:
 
-## Consequências
+### Modo Groq — busca por palavras + fallback
 
-Os documentos e as buscas ficam no PostgreSQL, e o envio do arquivo salva tudo em uma transação. Os pesos da busca são iniciais: ainda não foram avaliados com um conjunto de perguntas de teste. Sem chave de IA para gerar as representações numéricas, o sistema busca apenas pelas palavras. PDFs que são só imagens não funcionam, porque o projeto ainda não transforma imagem em texto (OCR).
+O Groq não oferece geração de embeddings, então a busca é feita pelo PostgreSQL usando as palavras da pergunta diretamente.
+
+Para resolver o problema do "telefone sem a palavra telefone", adicionamos um fallback: se a busca por palavras não encontrar nada mas o usuário está consultando um documento específico, o sistema carrega todos os trechos desse documento e manda para a IA avaliar. Assim o Groq consegue responder mesmo quando os termos não coincidem exatamente.
+
+### Modo OpenAI — busca combinada (palavras + significado)
+
+Quando o `OPENAI_API_KEY` está configurado:
+- Cada trecho do documento ganha uma representação matemática do seu significado (embedding), salva no banco.
+- A pergunta do usuário também vira um embedding na hora da busca.
+- O sistema combina os dois resultados: 65% de peso para similaridade de significado e 35% para correspondência de palavras.
+- Isso garante que tanto perguntas conceituais quanto termos técnicos exatos sejam encontrados.
+
+## Por que não usamos um banco de vetores separado?
+
+Consideramos ferramentas como Pinecone e Qdrant, mas o PostgreSQL com a extensão `pgvector` resolve o problema sem adicionar mais uma peça na infraestrutura. Documentos, trechos, vetores e índices de texto ficam todos no mesmo lugar — mais simples de rodar, de fazer backup e de entender.

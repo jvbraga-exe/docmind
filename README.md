@@ -1,24 +1,49 @@
 # DocMind
 
-O DocMind é um assistente de pesquisa documental. Ele transforma PDFs e arquivos TXT em conteúdo pesquisável para ajudar a encontrar informações e responder perguntas sem precisar percorrer o documento inteiro.
+Faça perguntas sobre seus documentos e receba respostas com referências exatas às páginas originais.
 
-## IA e busca
+Você sobe um PDF ou TXT, digita sua dúvida em português, e o DocMind busca as partes relevantes do arquivo e pede para a IA montar uma resposta baseada só no que está escrito ali — sem inventar nada.
 
-O projeto usa um fluxo de RAG: extrai o texto, encontra os trechos mais relacionados à pergunta e envia esses trechos ao modelo de IA para gerar uma resposta com referências. Assim, é possível conferir a resposta no documento original.
+---
 
-Com `GROQ_API_KEY`, o Groq gera respostas usando trechos encontrados pela busca textual. Com `OPENAI_API_KEY` e sem chave Groq, o sistema também cria embeddings para combinar busca por palavras e por significado. Sem nenhuma chave, a busca textual continua disponível, mas não há respostas geradas por IA.
+## Como o projeto funciona por dentro
 
-## Como funciona
+O DocMind tem três etapas principais:
 
-1. O sistema extrai o texto e o salva em trechos no PostgreSQL.
-2. A busca seleciona trechos relevantes para a pergunta.
-3. Quando há um provedor de IA configurado, o modelo responde com base nesses trechos e inclui referências.
+**1. Indexação do documento**
+Quando você envia um arquivo, o sistema divide o texto em pedaços menores (chamados *chunks*) e salva cada um no banco de dados. Se você usa OpenAI, também gera uma representação matemática do significado de cada pedaço — isso permite buscar por contexto e não só por palavras exatas.
 
-## Rodar localmente
+**2. Busca**
+Quando você faz uma pergunta, o sistema procura os pedaços mais relevantes do documento. Isso pode funcionar de dois jeitos dependendo do seu provedor de IA:
 
-Você precisa de Python 3.11+, Node.js 20+, npm e Docker Compose.
+| Provedor | Como busca | Ponto forte |
+|---|---|---|
+| **Groq** | Busca por palavras e termos no texto | Gratuito, muito rápido, funciona bem para a maioria dos casos |
+| **OpenAI** | Busca por significado + palavras | Encontra respostas mesmo quando o usuário usa palavras diferentes das do documento |
 
-Na pasta `docmind-python`, prepare o ambiente uma vez.
+**3. Resposta**
+Os pedaços encontrados vão para a IA junto com a pergunta. A IA lê o contexto e escreve uma resposta em linguagem natural, citando de onde veio cada informação.
+
+---
+
+## Tecnologias usadas
+
+- **FastAPI** — backend Python assíncrono
+- **LangChain** — divide os documentos e conecta com os modelos de IA
+- **PostgreSQL** — salva os documentos, os pedaços e (com OpenAI) os vetores de significado
+- **React + TypeScript** — interface web
+
+---
+
+## Como rodar localmente
+
+### O que você precisa ter instalado
+
+- Python 3.11 ou mais recente
+- Node.js 20 ou mais recente
+- Docker (para subir o banco de dados)
+
+### 1. Instalar dependências
 
 **Windows (PowerShell):**
 
@@ -39,9 +64,21 @@ cp .env.example .env
 npm --prefix frontend install
 ```
 
-No `.env`, preencha a chave do provedor que você escolheu. As demais configurações já apontam para o PostgreSQL local.
+### 2. Configurar a chave de IA
 
-Inicie o banco e, em seguida, a aplicação:
+Abra o arquivo `.env` e coloque a chave do provedor que você quer usar:
+
+```env
+# Opção 1: Groq — gratuito, muito rápido
+GROQ_API_KEY=sua_chave_aqui
+
+# Opção 2: OpenAI — busca por significado + palavras
+OPENAI_API_KEY=sua_chave_aqui
+```
+
+> Você pode pegar uma chave Groq gratuitamente em [console.groq.com](https://console.groq.com).
+
+### 3. Subir o banco e rodar a aplicação
 
 ```bash
 docker compose up -d --wait
@@ -57,14 +94,21 @@ npm run dev
 npm run dev:unix
 ```
 
-Abra <http://127.0.0.1:5173>. A API fica em <http://127.0.0.1:8084/api/docs>. `Ctrl+C` encerra a aplicação.
+Depois de rodar, acesse:
+
+- **Interface:** http://127.0.0.1:5173
+- **API (documentação interativa):** http://127.0.0.1:8084/api/docs
+
+---
 
 ## Testes
 
 ```bash
-python -m pytest -q
+python -m pytest -v
 ```
 
-## Limites
+---
 
-Aceita arquivos de até 8 MB e PDFs com texto selecionável; ainda não há OCR para PDFs escaneados. Com a IA habilitada, os trechos encontrados são enviados ao provedor configurado. O projeto não tem autenticação e é voltado a uso local.
+## Licença
+
+MIT — projeto de portfólio.

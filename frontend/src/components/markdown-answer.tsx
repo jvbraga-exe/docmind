@@ -1,15 +1,15 @@
 import type { ReactNode } from 'react';
 
-function cleanMarkdown(value: string): string {
-  const entities: Record<string, string> = {
-    '&nbsp;': ' ',
-    '&amp;': '&',
-    '&lt;': '<',
-    '&gt;': '>',
-    '&quot;': '"',
-    '&apos;': "'",
-  };
+const HTML_ENTITIES: Record<string, string> = {
+  '&nbsp;': ' ',
+  '&amp;': '&',
+  '&lt;': '<',
+  '&gt;': '>',
+  '&quot;': '"',
+  '&apos;': "'",
+};
 
+function cleanMarkdown(value: string): string {
   return value
     .replace(/(?:【|\[)\s*(\d+)(?:\s*[†‡]\s*L?\d+(?:\s*[-–]\s*L?\d+)?)?\s*(?:】|\])/gi, '[$1]')
     .replace(/\\([\\`*_{}\[\]()#+\-.!>])/g, '$1')
@@ -22,7 +22,7 @@ function cleanMarkdown(value: string): string {
     })
     .replace(
       /&(?:nbsp|amp|lt|gt|quot|apos);/gi,
-      (entity) => entities[entity.toLowerCase()] ?? entity,
+      (entity) => HTML_ENTITIES[entity.toLowerCase()] ?? entity,
     )
     .replace(/[\u00a0\u202f]/g, ' ')
     .replace(/\\[ \t]*\r?\n/g, '\n')

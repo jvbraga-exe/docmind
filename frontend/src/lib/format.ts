@@ -4,6 +4,7 @@ export function dateTime(value?: string | null): string {
     : '—';
 }
 
+// Reservado para uso futuro — atualmente sem importações ativas no projeto.
 export function timeOnly(value?: string | null): string {
   return value
     ? new Date(value).toLocaleTimeString('pt-BR', {

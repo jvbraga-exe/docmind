@@ -18,24 +18,26 @@ class DocumentService:
         self.ai = ai
 
     async def upload(self, filename: str, contents: bytes) -> dict:
+        name = Path(filename).name
         chunks = await run_in_threadpool(extract_chunks, filename, contents)
 
+        # Se houver modelo de embeddings ativo (OpenAI), gera os vetores; com Groq puro, usa FTS
         vectors = (
             await self.ai.embed([text for _, text in chunks])
             if self.ai.embedding_enabled
             else None
         )
+
         document_id, count = await run_in_threadpool(
             self.repository.add_document,
-            Path(filename).name,
+            name,
             chunks,
             vectors,
         )
         return {
-            'id': document_id,
-            'name': Path(filename).name,
-            'chunks': count,
-            'mode': 'hybrid' if vectors else 'lexical',
+            "id": document_id,
+            "name": name,
+            "chunks": count,
         }
 
     async def list(self) -> list[dict]:

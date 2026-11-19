@@ -5,10 +5,12 @@ from uuid import uuid4
 
 import numpy as np
 import psycopg
-from psycopg.rows import dict_row
 from pgvector.psycopg import register_vector
+from psycopg.rows import dict_row
 
 from ..core.chunking import lexical_query
+
+_OVERVIEW_LIMIT = 20
 
 
 class DocumentsRepository:
@@ -24,7 +26,6 @@ class DocumentsRepository:
         return conn
 
     def initialize(self):
-        # A extensão precisa existir antes de registrar o tipo vector na conexão.
         with psycopg.connect(self.dsn) as connection:
             connection.execute("CREATE EXTENSION IF NOT EXISTS vector")
 
@@ -95,18 +96,20 @@ class DocumentsRepository:
 
     def list_documents(self) -> list[dict]:
         with self.connect() as db:
-            rows = db.execute("""
+            rows = db.execute(
+                """
                 SELECT d.id::text AS id, d.name, d.created_at,
                        COUNT(c.id)::integer AS chunks
                 FROM documents d LEFT JOIN chunks c ON c.document_id=d.id
                 GROUP BY d.id ORDER BY d.created_at DESC
-            """).fetchall()
+                """
+            ).fetchall()
             return rows
 
     def document_chunks(
         self,
         document_id: str,
-        limit: int = 20,
+        limit: int = _OVERVIEW_LIMIT,
     ) -> list[dict]:
         with self.connect() as db:
             rows = db.execute(
@@ -133,17 +136,15 @@ class DocumentsRepository:
         embedding: list[float] | None = None,
         limit: int = 5,
     ) -> list[dict]:
-        """Combina busca textual e vetorial e filtra pelo documento, quando informado."""
         query = lexical_query(question)
-
         vector = np.array(embedding, dtype=np.float32) if embedding is not None else None
+
         if not query and vector is None:
             return []
 
-        safe_lexical = query if query else ""
-
         with self.connect() as db:
-            if safe_lexical:
+            if query:
+                # Junta palavras exatas (35% de peso) com significado do texto via IA (65% de peso)
                 sql = """
                     WITH candidates AS (
                         SELECT c.page, c.text, d.name AS document,
@@ -160,7 +161,7 @@ class DocumentsRepository:
                     WHERE lexical > 0 OR semantic > 0.53
                     ORDER BY score DESC LIMIT %s
                 """
-                params = (safe_lexical, vector, vector, document_id, document_id, limit)
+                params = (query, vector, vector, document_id, document_id, limit)
             else:
                 sql = """
                     WITH candidates AS (

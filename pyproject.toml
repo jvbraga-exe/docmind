@@ -1,7 +1,7 @@
 [project]
 name = "docmind"
 version = "1.0.0"
-description = "Pesquisa documentos com FastAPI, PostgreSQL e modelos de linguagem."
+description = "Assistente RAG com FastAPI, LangChain e PostgreSQL com pgvector."
 requires-python = ">=3.11"
 dependencies = [
     "fastapi>=0.115,<1",
@@ -10,9 +10,12 @@ dependencies = [
     "pypdf>=5.0,<7",
     "psycopg[binary]>=3.2,<4",
     "pgvector>=0.4,<1",
-    "openai>=1.70,<3",
     "python-dotenv>=1,<2",
     "numpy>=1.26,<3",
+    "langchain-core>=0.3,<1",
+    "langchain-text-splitters>=0.3,<1",
+    "langchain-openai>=0.3,<1",
+    "langchain-groq>=0.2,<1",
 ]
 
 [dependency-groups]
